@@ -1,0 +1,2 @@
+client.exe -private "12HXahsPwwXdfePX2qZ5YzK7CveiCyfm6Zf7WdoVK8MhejS8bKjF" -public "0339e4dc2b1a38f8b2efff48bfbb2916e64dc269484398467f48132bebf77016e1" -address "15J4ZrLJj3b3PQy6P6uJkQB5FGkV1kQqr7"
+pause

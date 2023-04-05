@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package = "lib/grpc";
+
+message MerkleNode {
+  string hash = 1;
+  string path = 2;
+  string type = 3;
+  string data = 4;
+  repeated string links = 5;
+}
+
+message MerkleRoot {
+  string root = 1;
+  string treeRoot = 2;
+  string dagRoot = 3;
+}
+
+message Reciept {
+  MerkleRoot root = 1;
+}
+
+message SignedReciept {
+  Reciept root = 1;
+  string signature = 2;
+}
+
+service MerkleService {
+  rpc SendMerkleRoot(MerkleRoot) returns (Response) {}
+  rpc SendMerkleNode(MerkleNode) returns (Response) {}
+  rpc NotifyCompletion(MerkleRoot) returns (Reciept) {}
+  rpc SendSignedReciept(SignedReciept) returns (Response) {}
+}
+
+message Response {
+  string message = 1;
+}
