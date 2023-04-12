@@ -7,8 +7,10 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	hornet_bolt "rpctest/lib/database/bolt"
 	"rpctest/lib/web"
 
 	"github.com/boltdb/bolt"
@@ -44,45 +46,33 @@ func main() {
 		}()
 	}
 
-	ctx = InitDatabase(ctx)
-	ctx = InitGrpcServer(ctx)
+	//ctx = InitDatabase(ctx)
+	//ctx = InitGrpcServer(ctx)
 
-	Context = ctx
-
-	wg.Wait()
-}
-
-func InitDatabase(ctx context.Context) context.Context {
-	blockDb, err := bolt.Open("blocks.db", 0600, &bolt.Options{Timeout: 3 * time.Second})
+	// Database
+	boltDatabase, err := bolt.Open("database.db", 0600, &bolt.Options{Timeout: 3 * time.Second})
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx = context.WithValue(ctx, keys.BlockDatabase, blockDb)
-	defer blockDb.Close()
 
-	contentDb, err := bolt.Open("content.db", 0600, &bolt.Options{Timeout: 3 * time.Second})
-	if err != nil {
-		log.Fatal(err)
+	boltDb := &hornet_bolt.BoltDatabase{
+		Db: boltDatabase,
 	}
-	ctx = context.WithValue(ctx, keys.ContentDatabase, contentDb)
-	defer contentDb.Close()
 
-	cacheDb, err := bolt.Open("cache.db", 0600, &bolt.Options{Timeout: 3 * time.Second})
-	if err != nil {
-		log.Fatal(err)
-	}
-	ctx = context.WithValue(ctx, keys.CacheDatabase, cacheDb)
-	defer cacheDb.Close()
+	boltDb.CreateBucket("blocks")
+	boltDb.CreateBucket("content")
+	boltDb.CreateBucket("cache")
 
-	return ctx
-}
+	ctx = context.WithValue(ctx, keys.BlockDatabase, boltDb)
+	defer boltDatabase.Close()
 
-func InitGrpcServer(ctx context.Context) context.Context {
-	// Create a gRPC server
+	// Grpc Server
 	lis, err := net.Listen("tcp", "localhost:50051")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
+
+	customLis := &customListener{Listener: lis}
 
 	creds, err := credentials.NewServerTLSFromFile("localhost.crt", "localhost.key")
 	opts := []grpc.ServerOption{
@@ -102,11 +92,49 @@ func InitGrpcServer(ctx context.Context) context.Context {
 
 	// Start the gRPC server
 	log.Println("Starting gRPC server...")
-	if err := s.Serve(lis); err != nil {
+	if err := s.Serve(customLis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
 
 	defer s.Stop()
 
+	Context = ctx
+
+	wg.Wait()
+}
+
+func InitDatabase(ctx context.Context) context.Context {
+
 	return ctx
+}
+
+func InitGrpcServer(ctx context.Context) context.Context {
+
+	return ctx
+}
+
+type customListener struct {
+	net.Listener
+	clientCounter uint64
+}
+
+func (cl *customListener) Accept() (net.Conn, error) {
+	conn, err := cl.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+
+	clientID := atomic.AddUint64(&cl.clientCounter, 1)
+	fmt.Printf("New client connected, assigned ID: %d\n", clientID)
+	conn = &customConn{Conn: conn, clientID: clientID}
+	return conn, nil
+}
+
+type customConn struct {
+	net.Conn
+	clientID uint64
+}
+
+func (cc *customConn) ClientID() uint64 {
+	return cc.clientID
 }

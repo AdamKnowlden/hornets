@@ -127,5 +127,7 @@ func SendMegaTree(megaTree *MegaTree, encoding ...multibase.Encoding) error {
 	}
 	fmt.Println(response.Message)
 
+	conn.Close()
+
 	return nil
 }

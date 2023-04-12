@@ -16,8 +16,8 @@ func Open() (*grpc.ClientConn, error) {
 	var conn *grpc.ClientConn
 
 	// Set up a connection to the server.
-
-	if err != nil {
+	//err = fmt.Errorf("Test")
+	if err == nil {
 		conn, err = grpc.Dial("localhost:50051", grpc.WithTransportCredentials(creds))
 	} else {
 		conn, err = grpc.Dial("localhost:50051", grpc.WithInsecure())
@@ -27,7 +27,6 @@ func Open() (*grpc.ClientConn, error) {
 		log.Printf("Could not connect: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	return conn, nil
 }
